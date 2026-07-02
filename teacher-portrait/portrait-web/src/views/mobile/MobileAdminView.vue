@@ -142,12 +142,19 @@ const fetchStats = async () => {
     }
 
     // 计算成果总数（各模块数据汇总）
-    const modules = ['vertical-project', 'horizontal-project', 'patent', 'software', 'paper', 'competition']
+    const apiPaths = [
+      '/vertical-projects',
+      '/horizontal-projects',
+      '/patents',
+      '/software-copyrights',
+      '/papers',
+      '/competitions'
+    ]
     let totalCount = 0
     
     // 并行请求各模块数据
-    const promises = modules.map(m => 
-      request({ url: `/${m.replace('-', '/')}`, method: 'get', params: { page: 1, size: 1 } })
+    const promises = apiPaths.map(path => 
+      request({ url: path, method: 'get', params: { page: 1, size: 1 } })
         .catch(() => ({ data: { total: 0 } }))
     )
     
