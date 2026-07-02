@@ -7,6 +7,21 @@ SET NAMES utf8mb4;
 CREATE DATABASE IF NOT EXISTS `teacher_portrait` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `teacher_portrait`;
 
+-- ============================================
+-- 清理已有表（支持重复执行）
+-- ============================================
+-- 先删除有外键依赖的表，再删除被引用的表
+DROP TABLE IF EXISTS `paper_index`;
+DROP TABLE IF EXISTS `patent_transfer`;
+DROP TABLE IF EXISTS `competition`;
+DROP TABLE IF EXISTS `software_copyright`;
+DROP TABLE IF EXISTS `paper`;
+DROP TABLE IF EXISTS `patent`;
+DROP TABLE IF EXISTS `horizontal_project`;
+DROP TABLE IF EXISTS `vertical_project`;
+DROP TABLE IF EXISTS `score_config`;
+DROP TABLE IF EXISTS `user`;
+
 -- 1. 用户表
 CREATE TABLE `user` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,

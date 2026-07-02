@@ -15,6 +15,19 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+# ========== 应用自定义配置 ==========
+app:
+  upload:
+    path: ${APP_UPLOAD_PATH:./uploads}
+    max-size: 10485760
+  mobile:
+    default-page-size: 10
+    max-page-size: 100
 
 mybatis-plus:
   configuration:
@@ -39,6 +52,11 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.portrait.controller
+      mobile:
+        group-name: 移动端API
+        api-rule: package
+        api-rule-resources:
+          - com.portrait.controller.mobile
 
 jwt:
   secret: ${JWT_SECRET:teacher-portrait-dev-secret-key-2026}

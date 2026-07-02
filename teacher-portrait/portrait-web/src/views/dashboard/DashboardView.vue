@@ -1,54 +1,79 @@
 <template>
-  <div class="dashboard">
+  <div class="dashboard" :class="{ 'mobile-dashboard': responsive.isMobile.value }">
     <div class="dash-header">
       <div>
-        <h2 class="dash-title">首页仪表盘</h2>
-        <p class="dash-greeting">{{ greeting }}，{{ userStore.userName }}</p>
+        <h2 class="dash-title" :class="{ 'mobile-title': responsive.isMobile.value }">首页仪表盘</h2>
+        <p class="dash-greeting" :class="{ 'mobile-greeting': responsive.isMobile.value }">{{ greeting }}，{{ userStore.userName }}</p>
       </div>
     </div>
 
-    <div class="stats-grid">
-      <div v-for="card in cards" :key="card.label" class="stat-card" :style="{ '--card-accent': card.accent }">
-        <div class="stat-top">
-          <div class="stat-icon-wrap">
-            <el-icon :size="22"><component :is="card.icon" /></el-icon>
+    <!-- 统计卡片 - 使用响应式栅格 -->
+    <el-row :gutter="responsive.gridConfig.value.gutter" class="stats-row">
+      <el-col 
+        v-for="card in cards" 
+        :key="card.label" 
+        :xs="12" 
+        :sm="12" 
+        :md="8" 
+        :lg="6" 
+        :xl="4"
+      >
+        <div class="stat-card" :style="{ '--card-accent': card.accent }">
+          <div class="stat-top">
+            <div class="stat-icon-wrap">
+              <el-icon :size="responsive.isMobile.value ? 18 : 22"><component :is="card.icon" /></el-icon>
+            </div>
+            <span class="stat-label" :class="{ 'mobile-label': responsive.isMobile.value }">{{ card.label }}</span>
           </div>
-          <span class="stat-label">{{ card.label }}</span>
+          <div class="stat-value" :class="{ 'mobile-value': responsive.isMobile.value }">{{ card.value }}</div>
+          <div v-if="card.sub && !responsive.isMobile.value" class="stat-sub">{{ card.sub }}</div>
         </div>
-        <div class="stat-value">{{ card.value }}</div>
-        <div v-if="card.sub" class="stat-sub">{{ card.sub }}</div>
-      </div>
-    </div>
+      </el-col>
+    </el-row>
 
-    <el-row :gutter="20" style="margin-top: 24px;">
-      <el-col :span="14">
+    <!-- 快速入口和关于系统 - 使用响应式栅格 -->
+    <el-row :gutter="responsive.gridConfig.value.gutter" class="section-row">
+      <!-- 快速入口 -->
+      <el-col :xs="24" :sm="24" :md="14" :lg="14" :xl="14">
         <el-card shadow="never" class="section-card">
           <template #header>
             <div class="section-header">
               <span class="section-title">快速入口</span>
-              <span class="section-desc">常用功能快捷访问</span>
+              <span v-if="!responsive.isMobile.value" class="section-desc">常用功能快捷访问</span>
             </div>
           </template>
-          <div class="quick-grid">
-            <div v-for="item in quickLinksResolved" :key="item.path" class="quick-item" @click="router.push(item.path)">
-              <div class="quick-icon" :style="{ background: item.bg }">
-                <el-icon :size="20" color="#fff"><component :is="item.icon" /></el-icon>
+          <!-- 快速入口网格 - 响应式 -->
+          <el-row :gutter="responsive.isMobile.value ? 12 : 16" class="quick-row">
+            <el-col 
+              v-for="item in quickLinksResolved" 
+              :key="item.path" 
+              :xs="8" 
+              :sm="8" 
+              :md="responsive.gridConfig.value.span" 
+              :lg="responsive.gridConfig.value.span"
+            >
+              <div class="quick-item" @click="router.push(item.path)">
+                <div class="quick-icon" :style="{ background: item.bg }">
+                  <el-icon :size="responsive.isMobile.value ? 18 : 20" color="#fff"><component :is="item.icon" /></el-icon>
+                </div>
+                <span class="quick-label" :class="{ 'mobile-label': responsive.isMobile.value }">{{ item.label }}</span>
               </div>
-              <span class="quick-label">{{ item.label }}</span>
-            </div>
-          </div>
+            </el-col>
+          </el-row>
         </el-card>
       </el-col>
-      <el-col :span="10">
+
+      <!-- 关于系统 -->
+      <el-col :xs="24" :sm="24" :md="10" :lg="10" :xl="10">
         <el-card shadow="never" class="section-card about-card">
           <template #header>
             <div class="section-header">
               <span class="section-title">关于系统</span>
             </div>
           </template>
-          <p class="about-text">教师数字画像系统用于高校教师科研成果的统一管理与可视化数字画像展示。</p>
-          <p class="about-text">通过多维度成果数据的雷达图与统计图表，直观呈现教师综合能力，服务于个人发展自评与学院统筹管理。</p>
-          <div class="about-tags">
+          <p class="about-text" :class="{ 'mobile-text': responsive.isMobile.value }">教师数字画像系统用于高校教师科研成果的统一管理与可视化数字画像展示。</p>
+          <p v-if="!responsive.isMobile.value" class="about-text">通过多维度成果数据的雷达图与统计图表，直观呈现教师综合能力，服务于个人发展自评与学院统筹管理。</p>
+          <div class="about-tags" :class="{ 'mobile-tags': responsive.isMobile.value }">
             <span class="about-tag">Spring Boot</span>
             <span class="about-tag">Vue 3</span>
             <span class="about-tag">ECharts</span>
@@ -61,16 +86,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
+import { useResponsive } from '../../composables/useResponsive'
 import { getPortraitDashboard, getAggregatedDashboard } from '../../api/portrait'
 import { Document, Collection, Trophy, DataBoard, Money, Files, FolderOpened, Reading, PieChart } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const responsive = useResponsive()
 const dashboard = ref({})
 
+// ========== 问候语计算 ==========
 const greeting = computed(() => {
   const h = new Date().getHours()
   if (h < 6) return '夜深了'
@@ -80,12 +108,15 @@ const greeting = computed(() => {
   return '晚上好'
 })
 
+// ========== 数字画像路径 ==========
 const portraitPath = computed(() => {
   return userStore.userInfo ? `/portrait/${userStore.userInfo.userId}` : '/portrait'
 })
 
+// ========== 格式化金额 ==========
 function fmtMoney(v) { return v ? Number(v).toFixed(1) : '0.0' }
 
+// ========== 统计卡片配置 ==========
 const cards = computed(() => {
   const d = dashboard.value
   return [
@@ -98,6 +129,7 @@ const cards = computed(() => {
   ]
 })
 
+// ========== 快速入口配置 ==========
 const quickLinks = [
   { label: '纵向项目', path: '/project/vertical', icon: FolderOpened, bg: 'var(--color-blue)' },
   { label: '横向项目', path: '/project/horizontal', icon: FolderOpened, bg: 'var(--color-teal)' },
@@ -113,6 +145,7 @@ const quickLinksResolved = computed(() =>
   }))
 )
 
+// ========== 数据加载 ==========
 onMounted(async () => {
   try {
     let res
@@ -133,6 +166,11 @@ onMounted(async () => {
   max-width: 1200px;
 }
 
+.mobile-dashboard {
+  max-width: 100%;
+}
+
+/* ========== 头部样式 ========== */
 .dash-header {
   margin-bottom: 24px;
 }
@@ -145,15 +183,22 @@ onMounted(async () => {
   margin-bottom: 4px;
 }
 
+.mobile-title {
+  font-size: 18px;
+}
+
 .dash-greeting {
   font-size: 14px;
   color: var(--color-text-muted);
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 16px;
+.mobile-greeting {
+  font-size: 12px;
+}
+
+/* ========== 统计卡片样式 ========== */
+.stats-row {
+  margin-bottom: 16px;
 }
 
 .stat-card {
@@ -164,6 +209,7 @@ onMounted(async () => {
   transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
+  margin-bottom: 16px;
 }
 
 .stat-card::before {
@@ -210,6 +256,10 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 
+.mobile-label {
+  font-size: 11px;
+}
+
 .stat-value {
   font-size: 28px;
   font-weight: 700;
@@ -218,14 +268,24 @@ onMounted(async () => {
   line-height: 1.1;
 }
 
+.mobile-value {
+  font-size: 22px;
+}
+
 .stat-sub {
   font-size: 12px;
   color: var(--color-text-light);
   margin-top: 4px;
 }
 
+/* ========== 区块样式 ========== */
+.section-row {
+  margin-top: 24px;
+}
+
 .section-card {
   height: 100%;
+  margin-bottom: 16px;
 }
 
 .section-header {
@@ -245,10 +305,9 @@ onMounted(async () => {
   color: var(--color-text-light);
 }
 
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
+/* ========== 快速入口样式 ========== */
+.quick-row {
+  padding: 8px 0;
 }
 
 .quick-item {
@@ -287,6 +346,7 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+/* ========== 关于系统样式 ========== */
 .about-card :deep(.el-card__body) {
   padding-top: 16px;
 }
@@ -298,11 +358,20 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 
+.mobile-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .about-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 16px;
+}
+
+.mobile-tags {
+  margin-top: 12px;
 }
 
 .about-tag {
@@ -312,5 +381,33 @@ onMounted(async () => {
   padding: 3px 10px;
   border-radius: 20px;
   border: 1px solid var(--color-border-light);
+}
+
+/* ========== 移动端响应式 ========== */
+@media (max-width: 768px) {
+  .stat-card {
+    padding: 16px;
+  }
+  
+  .stat-icon-wrap {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .quick-item {
+    padding: 12px 6px;
+  }
+  
+  .quick-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* ========== 平板端响应式 ========== */
+@media (min-width: 768px) and (max-width: 1200px) {
+  .stats-row :deep(.el-col) {
+    margin-bottom: 12px;
+  }
 }
 </style>

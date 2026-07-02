@@ -45,6 +45,14 @@
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  
+  /* ========== 响应式断点 CSS 变量 ========== */
+  --breakpoint-xs: 375px;
+  --breakpoint-sm: 576px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1200px;
+  --breakpoint-xxl: 1920px;
 }
 
 * {
@@ -130,5 +138,164 @@ html, body, #app {
 
 .el-message-box {
   border-radius: var(--radius-lg) !important;
+}
+
+/* ========== 响应式全局样式 ========== */
+
+/* 移动端（xs: <576px） */
+@media (max-width: 575.98px) {
+  .el-card__header {
+    padding: 12px 16px !important;
+  }
+  
+  .el-card__body {
+    padding: 16px !important;
+  }
+  
+  .el-dialog {
+    width: 90% !important;
+    max-width: 320px !important;
+  }
+  
+  .el-form-item__label {
+    font-size: 13px !important;
+  }
+  
+  .el-button {
+    padding: 8px 16px !important;
+  }
+  
+  .el-input__wrapper {
+    padding: 1px 8px !important;
+  }
+  
+  /* 移动端表格优化 */
+  .el-table th.el-table__cell {
+    font-size: 12px !important;
+    padding: 8px 0 !important;
+  }
+  
+  .el-table td.el-table__cell {
+    font-size: 12px !important;
+    padding: 8px 0 !important;
+  }
+}
+
+/* 平板端（sm: 576px - 767px） */
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .el-dialog {
+    width: 80% !important;
+    max-width: 480px !important;
+  }
+  
+  .el-card__body {
+    padding: 18px !important;
+  }
+}
+
+/* 小桌面端（md: 768px - 991px） */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .el-dialog {
+    width: 70% !important;
+    max-width: 560px !important;
+  }
+}
+
+/* 大桌面端（xl: >=1200px） */
+@media (min-width: 1200px) {
+  .el-dialog {
+    width: 50% !important;
+    max-width: 640px !important;
+  }
+}
+
+/* ========== 移动端 Element Plus 组件优化 ========== */
+
+/* 移动端 Dialog 弹窗 */
+@media (max-width: 768px) {
+  .el-dialog {
+    border-radius: var(--radius-md) !important;
+    margin-top: 10vh !important;
+  }
+  
+  .el-dialog__header {
+    padding: 12px 16px !important;
+  }
+  
+  .el-dialog__body {
+    padding: 16px !important;
+  }
+  
+  .el-dialog__footer {
+    padding: 12px 16px !important;
+  }
+  
+  /* 移动端 Drawer 抽屉 */
+  .el-drawer {
+    border-radius: 0 !important;
+  }
+  
+  .el-drawer__header {
+    padding: 12px 16px !important;
+  }
+  
+  .el-drawer__body {
+    padding: 12px !important;
+  }
+  
+  /* 移动端 Select 选择器 */
+  .el-select-dropdown {
+    max-width: 100vw !important;
+  }
+  
+  /* 移动端 Menu 菜单 */
+  .el-menu--collapse .el-menu-item span,
+  .el-menu--collapse .el-sub-menu__title span {
+    display: none !important;
+  }
+  
+  /* 移动端 Pagination 分页 */
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .el-pagination .el-pagination__sizes,
+  .el-pagination .el-pagination__jump {
+    margin-left: 0 !important;
+    margin-top: 8px;
+  }
+}
+
+/* ========== 触摸设备优化 ========== */
+@media (hover: none) and (pointer: coarse) {
+  /* 增大触摸目标尺寸 */
+  .el-button {
+    min-height: 44px !important;
+  }
+  
+  .el-input__inner {
+    min-height: 44px !important;
+  }
+  
+  .el-checkbox__inner {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .el-radio__inner {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  /* 移除 hover 效果 */
+  .el-card:hover {
+    box-shadow: var(--shadow-sm) !important;
+    transform: none !important;
+  }
+  
+  .el-button:hover {
+    transform: none !important;
+  }
 }
 </style>

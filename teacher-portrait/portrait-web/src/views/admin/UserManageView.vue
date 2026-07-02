@@ -6,7 +6,7 @@
     </div>
 
     <el-card shadow="never" class="search-card">
-      <el-form :model="queryForm" inline>
+      <el-form :model="queryForm" inline :class="{ 'mobile-form': responsive.isMobile.value }">
         <el-form-item label="工号">
           <el-input v-model="queryForm.workNo" placeholder="请输入工号" clearable style="width:140px" />
         </el-form-item>
@@ -24,7 +24,15 @@
     </el-card>
 
     <el-card shadow="never" style="margin-top:16px">
-      <el-table :data="tableData" v-loading="loading" stripe border style="width:100%">
+      <!-- PC端：表格布局 -->
+      <el-table
+        v-if="!responsive.isMobile.value"
+        :data="tableData"
+        v-loading="loading"
+        stripe
+        border
+        style="width:100%"
+      >
         <el-table-column prop="id" label="ID" width="60" align="center" />
         <el-table-column prop="workNo" label="工号" width="100" align="center" />
         <el-table-column prop="name" label="姓名" width="100" align="center" />
@@ -44,13 +52,62 @@
         </el-table-column>
       </el-table>
 
-      <div class="pagination-wrap">
+      <!-- 移动端：卡片化布局 -->
+      <div v-if="responsive.isMobile.value" class="mobile-card-list" v-loading="loading">
+        <div
+          v-for="row in tableData"
+          :key="row.id"
+          class="user-card"
+        >
+          <!-- 卡片头部 -->
+          <div class="card-header">
+            <div class="card-title-row">
+              <span class="card-name">{{ row.name }}</span>
+              <el-tag :type="row.role === 'ADMIN' ? 'danger' : ''" size="small">{{ row.role === 'ADMIN' ? '管理员' : '教师' }}</el-tag>
+            </div>
+          </div>
+
+          <!-- 卡片内容区 -->
+          <div class="card-body">
+            <div class="card-row">
+              <span class="card-label">工号：</span>
+              <span class="card-value">{{ row.workNo }}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">学院：</span>
+              <span class="card-value">{{ row.college || '-' }}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">创建时间：</span>
+              <span class="card-value">{{ row.createTime || '-' }}</span>
+            </div>
+          </div>
+
+          <!-- 卡片底部：操作按钮 -->
+          <div class="card-footer">
+            <div class="card-actions">
+              <el-button type="primary" size="small" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+              <el-button type="warning" size="small" :icon="Key" @click="handleResetPwd(row)">重置密码</el-button>
+              <el-button type="danger" size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div v-if="tableData.length === 0 && !loading" class="card-empty">
+          <el-icon :size="48" color="#b8bfcc"><User /></el-icon>
+          <p class="empty-text">暂无用户数据</p>
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination-wrap" :class="{ 'mobile-pagination': responsive.isMobile.value }">
         <el-pagination
           v-model:current-page="queryForm.page"
           v-model:page-size="queryForm.size"
-          :page-sizes="[10, 20, 50]"
+          :page-sizes="responsive.isMobile.value ? [10, 20] : [10, 20, 50]"
           :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
+          :layout="responsive.isMobile.value ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
           @size-change="fetchData"
           @current-change="fetchData"
         />
@@ -60,7 +117,7 @@
     <el-dialog
       :model-value="dialogVisible"
       :title="isEdit ? '编辑用户' : '新增用户'"
-      width="500px"
+      :width="responsive.isMobile.value ? '90%' : '500px'"
       :close-on-click-modal="false"
       @update:model-value="dialogVisible = $event"
       @closed="handleClose"
@@ -95,10 +152,14 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { Plus, Search, RefreshRight, Edit, Delete, Key } from '@element-plus/icons-vue'
+import { Plus, Search, RefreshRight, Edit, Delete, Key, User } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../../api/request'
 import { useUserStore } from '../../store/user'
+import { useResponsive } from '../../composables/useResponsive'
+
+// 响应式布局检测
+const responsive = useResponsive()
 
 const userStore = useUserStore()
 const currentUserId = userStore.userInfo?.userId
@@ -208,4 +269,160 @@ async function handleResetPwd(row) {
 .search-card { padding: 4px 0; }
 .search-card :deep(.el-card__body) { padding-bottom: 0; }
 .pagination-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+/* ========== 移动端搜索表单适配 ========== */
+.mobile-form :deep(.el-form-item) {
+  margin-right: 0;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.mobile-form :deep(.el-form-item__label) {
+  width: 80px;
+}
+
+.mobile-form :deep(.el-input),
+.mobile-form :deep(.el-select) {
+  width: calc(100% - 80px) !important;
+}
+
+.mobile-form :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.mobile-form :deep(.el-button) {
+  width: 48%;
+}
+
+/* ========== 移动端分页适配 ========== */
+.mobile-pagination {
+  justify-content: center;
+}
+
+.mobile-pagination :deep(.el-pagination) {
+  flex-wrap: wrap;
+}
+
+/* ========== 移动端卡片化布局样式 ========== */
+.mobile-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.user-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.user-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* 卡片头部 */
+.card-header {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eaed 100%);
+  border-bottom: 1px solid #ebeef5;
+}
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 卡片内容区 */
+.card-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.card-label {
+  font-size: 13px;
+  color: #909399;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.card-value {
+  font-size: 13px;
+  color: #606266;
+  flex: 1;
+}
+
+/* 卡片底部 */
+.card-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #ebeef5;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card-actions :deep(.el-button) {
+  padding: 5px 12px;
+}
+
+/* 空状态 */
+.card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #909399;
+  margin-top: 12px;
+}
+
+/* ========== 响应式媒体查询（备用） ========== */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .page-header :deep(.el-button) {
+    width: 100%;
+  }
+}
 </style>

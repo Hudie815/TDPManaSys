@@ -4,15 +4,15 @@
       <h2 class="page-title">数据导入导出</h2>
     </div>
 
-    <el-tabs v-model="activeTab">
-      <el-tab-pane v-for="m in modules" :key="m.value" :label="m.label" :name="m.value">
-        <el-row :gutter="16">
-          <el-col :span="12">
+    <el-tabs v-model="activeTab" :class="{ 'mobile-tabs': isMobile }">
+      <el-tab-pane v-for="m in modules" :key="m.value" :label="isMobile ? getShortLabel(m.label) : m.label" :name="m.value">
+        <el-row :gutter="isMobile ? 0 : 16">
+          <el-col :span="isMobile ? 24 : 12">
             <el-card shadow="never">
               <template #header><span class="card-title">导入数据</span></template>
               <div class="step-row">
                 <span class="step-label">1. 下载模板</span>
-                <el-button type="success" size="small" @click="downloadTemplate">下载模板</el-button>
+                <el-button type="success" :size="isMobile ? 'default' : 'small'" @click="downloadTemplate">下载模板</el-button>
               </div>
               <div class="step-row">
                 <span class="step-label">2. 上传文件</span>
@@ -26,7 +26,7 @@
                   :show-file-list="false"
                   accept=".xlsx"
                 >
-                  <el-button type="primary" size="small" :loading="uploading">选择文件并上传</el-button>
+                  <el-button type="primary" :size="isMobile ? 'default' : 'small'" :loading="uploading">选择文件并上传</el-button>
                 </el-upload>
               </div>
               <div v-if="importResult" class="result-box">
@@ -43,22 +43,22 @@
               </div>
             </el-card>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="isMobile ? 24 : 12" :class="{ 'mt-16': isMobile }">
             <el-card shadow="never">
               <template #header><span class="card-title">导出数据</span></template>
-              <el-form label-width="80px" size="small">
+              <el-form :label-width="isMobile ? '100%' : '80px'" :label-position="isMobile ? 'top' : 'right'" size="small">
                 <el-form-item v-if="isAdmin" label="选择教师">
-                  <el-select v-model="exportUserId" placeholder="全部教师" clearable filterable style="width:200px">
+                  <el-select v-model="exportUserId" placeholder="全部教师" clearable filterable :style="{ width: isMobile ? '100%' : '200px' }">
                     <el-option v-for="u in teacherList" :key="u.id" :label="u.name + ' (' + u.workNo + ')'" :value="u.id" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="年份">
-                  <el-select v-model="exportYear" placeholder="全部年份" clearable style="width:140px">
+                  <el-select v-model="exportYear" placeholder="全部年份" clearable :style="{ width: isMobile ? '100%' : '140px' }">
                     <el-option v-for="y in years" :key="y" :label="String(y)" :value="y" />
                   </el-select>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" :icon="Download" @click="handleExport">导出 Excel</el-button>
+                  <el-button type="primary" :icon="Download" :size="isMobile ? 'default' : 'small'" @click="handleExport">导出 Excel</el-button>
                 </el-form-item>
               </el-form>
             </el-card>
@@ -74,11 +74,15 @@ import { ref, computed, onMounted } from 'vue'
 import { Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../../store/user'
+import { useResponsive } from '../../composables/useResponsive'
 import request from '../../api/request'
 
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.role === 'ADMIN')
 const token = userStore.token || ''
+
+// 响应式布局
+const { isMobile } = useResponsive()
 
 const activeTab = ref('vertical-project')
 const uploading = ref(false)
@@ -96,6 +100,19 @@ const modules = [
   { label: '论文', value: 'paper' },
   { label: '竞赛', value: 'competition' }
 ]
+
+// 移动端标签栏简化显示
+function getShortLabel(label) {
+  const map = {
+    '纵向项目': '纵向',
+    '横向项目': '横向',
+    '专利': '专利',
+    '软著': '软著',
+    '论文': '论文',
+    '竞赛': '竞赛'
+  }
+  return map[label] || label
+}
 
 const years = []
 for (let y = new Date().getFullYear(); y >= new Date().getFullYear() - 10; y--) {
@@ -183,4 +200,51 @@ async function handleExport() {
 .step-label { width: 90px; color: #606266; font-size: 14px; }
 .result-box { margin-top: 16px; padding: 12px; background: #f5f7fa; border-radius: 6px; }
 .reason-line { font-size: 12px; color: #909399; line-height: 1.6; }
+
+/* 移动端适配 */
+.mt-16 { margin-top: 16px; }
+
+.mobile-tabs {
+  margin: 0 -8px;
+}
+
+.mobile-tabs :deep(.el-tabs__header) {
+  margin-bottom: 12px;
+}
+
+.mobile-tabs :deep(.el-tabs__nav-wrap) {
+  padding: 0 8px;
+}
+
+.mobile-tabs :deep(.el-tabs__item) {
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.mobile-tabs :deep(.el-tabs__content) {
+  padding: 0 8px;
+}
+
+/* 移动端按钮样式调整 */
+@media (max-width: 768px) {
+  .step-row {
+    flex-wrap: wrap;
+  }
+
+  .step-label {
+    width: 100%;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .result-box {
+    margin-top: 12px;
+    padding: 10px;
+  }
+
+  .reason-line {
+    word-break: break-all;
+  }
+}
 </style>

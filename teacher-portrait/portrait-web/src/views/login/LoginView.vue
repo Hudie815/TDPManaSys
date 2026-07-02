@@ -1,6 +1,7 @@
 <template>
-  <div class="login-container">
-    <div class="login-brand">
+  <div class="login-container" :class="{ 'mobile-layout': responsive.isMobile.value }">
+    <!-- 桌面端/平板端品牌展示区 -->
+    <div v-if="!responsive.isMobile.value" class="login-brand">
       <div class="brand-content">
         <div class="brand-emblem">
           <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -25,11 +26,32 @@
         <div class="deco-circle deco-circle-3"></div>
       </div>
     </div>
-    <div class="login-form-side">
-      <div class="login-card">
-        <h2 class="form-title">欢迎回来</h2>
+
+    <!-- 登录表单区域 -->
+    <div class="login-form-side" :class="{ 'mobile-form': responsive.isMobile.value }">
+      <!-- 移动端顶部品牌展示 -->
+      <div v-if="responsive.isMobile.value" class="mobile-brand-header">
+        <div class="mobile-emblem">
+          <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="30" cy="30" r="26" stroke="rgba(200,164,92,0.5)" stroke-width="1.2"/>
+            <circle cx="30" cy="30" r="16" stroke="rgba(200,164,92,0.7)" stroke-width="1"/>
+            <circle cx="30" cy="30" r="6" fill="rgba(200,164,92,0.4)"/>
+          </svg>
+        </div>
+        <h1 class="mobile-brand-title">教师数字画像</h1>
+      </div>
+
+      <div class="login-card" :class="{ 'mobile-card': responsive.isMobile.value }">
+        <h2 class="form-title" :class="{ 'mobile-title': responsive.isMobile.value }">欢迎回来</h2>
         <p class="form-subtitle">请输入您的账号信息登录系统</p>
-        <el-form ref="formRef" :model="loginForm" :rules="rules" size="large" @keyup.enter="handleLogin">
+        <el-form 
+          ref="formRef" 
+          :model="loginForm" 
+          :rules="rules" 
+          :size="responsive.isMobile.value ? 'default' : 'large'" 
+          :label-position="responsive.isMobile.value ? 'top' : 'right'"
+          @keyup.enter="handleLogin"
+        >
           <el-form-item prop="workNo">
             <el-input v-model="loginForm.workNo" placeholder="请输入工号" :prefix-icon="User" />
           </el-form-item>
@@ -37,9 +59,22 @@
             <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" :prefix-icon="Lock" show-password />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :loading="loading" class="login-btn" @click="handleLogin">登 录</el-button>
+            <el-button 
+              type="primary" 
+              :loading="loading" 
+              class="login-btn" 
+              :class="{ 'mobile-btn': responsive.isMobile.value }"
+              @click="handleLogin"
+            >
+              登 录
+            </el-button>
           </el-form-item>
         </el-form>
+      </div>
+
+      <!-- 移动端底部版权信息 -->
+      <div v-if="responsive.isMobile.value" class="mobile-footer">
+        <p class="footer-text">Teacher Digital Portrait System</p>
       </div>
     </div>
   </div>
@@ -51,10 +86,12 @@ import { useRouter, useRoute } from 'vue-router'
 import { User, Lock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../../store/user'
+import { useResponsive } from '../../composables/useResponsive'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const responsive = useResponsive()
 const formRef = ref(null)
 const loading = ref(false)
 
@@ -87,6 +124,7 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
+/* ========== 桌面端布局 ========== */
 .login-container {
   height: 100vh;
   display: flex;
@@ -251,5 +289,111 @@ const handleLogin = async () => {
 
 :deep(.el-form-item) {
   margin-bottom: 22px;
+}
+
+/* ========== 移动端布局 ========== */
+.mobile-layout {
+  flex-direction: column;
+}
+
+.mobile-form {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--color-surface);
+}
+
+.mobile-form::before {
+  display: none;
+}
+
+/* 移动端顶部品牌 */
+.mobile-brand-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.mobile-emblem {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+}
+
+.mobile-brand-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 4px;
+}
+
+/* 移动端表单卡片 */
+.mobile-card {
+  width: 100%;
+  max-width: 340px;
+  padding: 24px;
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.mobile-title {
+  font-size: 22px;
+  text-align: center;
+}
+
+.mobile-btn {
+  height: 48px;
+  font-size: 16px;
+}
+
+/* 移动端底部版权 */
+.mobile-footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.footer-text {
+  font-size: 12px;
+  color: var(--color-text-light);
+  letter-spacing: 1px;
+}
+
+/* ========== 平板端适配 ========== */
+@media (max-width: 992px) and (min-width: 768px) {
+  .login-brand {
+    flex: 0.5;
+  }
+  
+  .login-form-side {
+    width: 50%;
+  }
+  
+  .brand-title {
+    font-size: 28px;
+  }
+  
+  .login-card {
+    width: 280px;
+  }
+}
+
+/* ========== 移动端响应式断点 ========== */
+@media (max-width: 768px) {
+  .login-container {
+    flex-direction: column;
+  }
+  
+  .login-brand {
+    display: none;
+  }
+  
+  .login-form-side {
+    width: 100%;
+  }
 }
 </style>
