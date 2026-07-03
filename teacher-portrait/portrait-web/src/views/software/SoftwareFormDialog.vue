@@ -61,7 +61,7 @@
     </el-form>
     <template #footer>
       <div class="dialog-footer" :class="{ 'mobile-footer': responsive.isMobile.value }">
-        <el-button @click="$emit('update:visible', false')">取 消</el-button>
+        <el-button @click="$emit('update:visible', false)">取 消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确 定</el-button>
       </div>
     </template>
