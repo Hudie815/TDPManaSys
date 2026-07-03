@@ -67,7 +67,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { Check } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '../../api/request'
-import { useResponsive } from '@/composables/useResponsive'
+import { useResponsive } from '../../composables/useResponsive'
 
 const { isMobile } = useResponsive()
 

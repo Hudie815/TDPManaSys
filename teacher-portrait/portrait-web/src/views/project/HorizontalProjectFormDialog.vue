@@ -2,12 +2,18 @@
   <el-dialog
     :model-value="visible"
     :title="isEdit ? '编辑横向项目' : '新增横向项目'"
-    width="650px"
+    :width="responsive.isMobile.value ? '90%' : '650px'"
     :close-on-click-modal="false"
     @update:model-value="$emit('update:visible', $event)"
     @closed="handleClose"
   >
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      :label-position="responsive.isMobile.value ? 'top' : 'right'"
+      :label-width="responsive.isMobile.value ? '100%' : '110px'"
+    >
       <el-row :gutter="20">
         <el-col :span="24">
           <el-form-item label="项目名称" prop="name">
@@ -23,12 +29,12 @@
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="合同金额(万元)" prop="contractAmount">
             <el-input-number v-model="form.contractAmount" :min="0.01" :precision="2" :step="1" placeholder="请输入合同金额" style="width:100%" />
           </el-form-item>
         </el-col>
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="参与角色" prop="role">
             <el-select v-model="form.role" placeholder="请选择参与角色" style="width:100%">
               <el-option label="主持" value="主持" />
@@ -38,19 +44,19 @@
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="签订日期" prop="signDate">
             <el-date-picker v-model="form.signDate" type="date" placeholder="请选择签订日期" value-format="YYYY-MM-DD" style="width:100%" />
           </el-form-item>
         </el-col>
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="完成日期">
             <el-date-picker v-model="form.endDate" type="date" placeholder="请选择完成日期" value-format="YYYY-MM-DD" style="width:100%" />
           </el-form-item>
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="项目状态" prop="status">
             <el-select v-model="form.status" placeholder="请选择项目状态" style="width:100%">
               <el-option label="在研" value="在研" />
@@ -64,8 +70,10 @@
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="$emit('update:visible', false)">取 消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">确 定</el-button>
+      <div :class="responsive.isMobile.value ? 'mobile-dialog-footer' : ''">
+        <el-button @click="$emit('update:visible', false)">取 消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确 定</el-button>
+      </div>
     </template>
   </el-dialog>
 </template>
@@ -74,6 +82,10 @@
 import { ref, reactive, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createHorizontalProject, updateHorizontalProject } from '../../api/horizontalProject'
+import { useResponsive } from '../../composables/useResponsive'
+
+// 响应式布局检测
+const responsive = useResponsive()
 
 const props = defineProps({
   visible: Boolean,
@@ -156,3 +168,17 @@ function handleClose() {
   resetForm()
 }
 </script>
+
+<style scoped>
+/* 移动端底部按钮平分宽度 */
+.mobile-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-dialog-footer :deep(.el-button) {
+  flex: 1;
+  margin: 0;
+}
+</style>

@@ -1,12 +1,22 @@
 <template>
-  <div class="dist-container">
-    <el-radio-group v-model="activeTab" size="small" @change="loadData">
+  <div class="dist-container" :class="{ 'is-mobile': isMobile }">
+    <!-- 移动端：下拉菜单形式 -->
+    <el-select v-if="isMobile" v-model="activeTab" size="small" style="width: 100%; margin-bottom: 8px;" @change="loadData">
+      <el-option label="项目级别" value="projectLevel" />
+      <el-option label="专利类型" value="patentType" />
+      <el-option label="论文类别" value="paperClass" />
+      <el-option label="竞赛级别" value="compLevel" />
+    </el-select>
+    
+    <!-- PC端：按钮组形式 -->
+    <el-radio-group v-else v-model="activeTab" size="small" @change="loadData">
       <el-radio-button label="projectLevel">项目级别</el-radio-button>
       <el-radio-button label="patentType">专利类型</el-radio-button>
       <el-radio-button label="paperClass">论文类别</el-radio-button>
       <el-radio-button label="compLevel">竞赛级别</el-radio-button>
     </el-radio-group>
-    <div ref="chartRef" class="chart"></div>
+    
+    <div ref="chartRef" class="chart" :class="{ 'is-mobile': isMobile }"></div>
   </div>
 </template>
 
@@ -15,7 +25,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import request from '../../api/request'
 
-const props = defineProps({ userId: Number })
+const props = defineProps({ userId: Number, isMobile: Boolean })
 const activeTab = ref('projectLevel')
 const chartRef = ref(null)
 let chartInstance = null
@@ -49,29 +59,77 @@ function renderChart(data) {
     })
     return
   }
+  
+  // 移动端：调整饼图位置和大小
+  const radius = props.isMobile ? ['35%', '60%'] : ['40%', '70%']
+  const center = props.isMobile ? ['50%', '50%'] : ['40%', '50%']
+  
   chartInstance.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { orient: 'vertical', right: 10, top: 'center' },
+    legend: { 
+      orient: props.isMobile ? 'horizontal' : 'vertical', 
+      right: props.isMobile ? 'auto' : 10, 
+      bottom: props.isMobile ? 0 : 'center',
+      top: props.isMobile ? 'auto' : 'center',
+      textStyle: { fontSize: props.isMobile ? 11 : 12 }
+    },
     series: [{
       type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['40%', '50%'],
+      radius: radius,
+      center: center,
       avoidLabelOverlap: true,
       itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
-      emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold' } },
+      emphasis: { label: { show: true, fontSize: props.isMobile ? 14 : 16, fontWeight: 'bold' } },
       data: data.map((d, i) => ({ ...d, itemStyle: { color: COLORS[i % COLORS.length] } }))
     }]
   })
 }
 
+// 监听窗口大小变化，触发 resize
+const handleResize = () => {
+  if (chartInstance) {
+    chartInstance.resize()
+  }
+}
+
 watch(() => props.userId, () => { nextTick(loadData) })
-onMounted(() => { nextTick(loadData) })
-onUnmounted(() => { if (chartInstance) chartInstance.dispose() })
+watch(() => props.isMobile, () => {
+  nextTick(() => {
+    loadData()
+    if (chartInstance) chartInstance.resize()
+  })
+})
+
+onMounted(() => {
+  nextTick(loadData)
+  window.addEventListener('resize', handleResize)
+})
+onUnmounted(() => {
+  if (chartInstance) chartInstance.dispose()
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style scoped>
-.dist-container { width: 100%; }
-.dist-container > .el-radio-group { margin-bottom: 10px; }
-.chart { width: 100%; height: 320px; }
+.dist-container { 
+  width: 100%; 
+}
+
+.dist-container.is-mobile {
+  padding: 0;
+}
+
+.dist-container > .el-radio-group { 
+  margin-bottom: 10px; 
+}
+
+.chart { 
+  width: 100%; 
+  height: 320px; 
+}
+
+.chart.is-mobile {
+  height: 260px;
+}
 </style>
