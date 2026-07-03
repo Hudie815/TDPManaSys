@@ -1,55 +1,60 @@
 <template>
   <div class="portrait-page">
-    <div class="page-header">
-      <div>
+    <div class="page-header" :class="{ 'is-mobile': responsive.isMobile.value }">
+      <div class="header-info">
         <h2 class="page-title">数字画像</h2>
         <p class="page-desc">多维度科研成果综合评估与可视化分析</p>
       </div>
-      <el-select v-if="isAdmin" v-model="selectedUserId" placeholder="选择教师" filterable style="width:240px" @change="onUserChange">
-        <el-option v-for="u in teacherList" :key="u.id" :label="u.name + ' (' + u.college + ')'" :value="u.id" />
-      </el-select>
-      <span v-else class="current-user-badge">{{ userStore.userName || '当前用户' }}</span>
+      <div class="header-actions" :class="{ 'is-mobile': responsive.isMobile.value }">
+        <el-select v-if="isAdmin" v-model="selectedUserId" placeholder="选择教师" filterable :style="{ width: responsive.isMobile.value ? '100%' : '240px' }" @change="onUserChange">
+          <el-option v-for="u in teacherList" :key="u.id" :label="u.name + ' (' + u.college + ')'" :value="u.id" />
+        </el-select>
+        <span v-else class="current-user-badge">{{ userStore.userName || '当前用户' }}</span>
+      </div>
     </div>
 
-    <div class="summary-grid">
+    <!-- 顶部数字指标卡片：移动端 2列×3行，PC端 6列×1行 -->
+    <div class="summary-grid" :class="{ 'is-mobile': responsive.isMobile.value }">
       <div v-for="item in summaryItems" :key="item.label" class="summary-card" :style="{ '--card-accent': item.accent }">
         <div class="summary-value" :style="{ color: item.colorFn ? item.colorFn(item.value) : 'var(--color-text-primary)' }">{{ item.display }}</div>
         <div class="summary-label">{{ item.label }}</div>
       </div>
     </div>
 
-    <el-row :gutter="20" style="margin-top: 20px;">
-      <el-col :span="12">
-        <el-card shadow="never">
+    <!-- 雷达图与成果分布：移动端垂直堆叠，PC端并排 -->
+    <el-row :gutter="responsive.isMobile.value ? 0 : 20" class="charts-row" :class="{ 'is-mobile': responsive.isMobile.value }">
+      <el-col :span="responsive.isMobile.value ? 24 : 12" :class="{ 'mobile-col': responsive.isMobile.value }">
+        <el-card shadow="never" :class="{ 'mobile-card': responsive.isMobile.value }">
           <template #header>
             <div class="section-header">
               <span class="section-title">综合能力雷达图</span>
             </div>
           </template>
-          <RadarChart ref="radarRef" :radar-data="radarData" :compare-mode="compareMode" :compare-data="compareData" :teacher-list="teacherList" @update:compare-data="onCompareData" />
+          <RadarChart ref="radarRef" :radar-data="radarData" :compare-mode="compareMode" :compare-data="compareData" :teacher-list="teacherList" :is-mobile="responsive.isMobile.value" @update:compare-data="onCompareData" />
         </el-card>
       </el-col>
-      <el-col :span="12">
-        <el-card shadow="never">
+      <el-col :span="responsive.isMobile.value ? 24 : 12" :class="{ 'mobile-col': responsive.isMobile.value }">
+        <el-card shadow="never" :class="{ 'mobile-card': responsive.isMobile.value }">
           <template #header>
             <div class="section-header">
               <span class="section-title">成果分布</span>
             </div>
           </template>
-          <DistributionChart :user-id="selectedUserId" />
+          <DistributionChart :user-id="selectedUserId" :is-mobile="responsive.isMobile.value" />
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" style="margin-top: 20px;">
+    <!-- 历年趋势 -->
+    <el-row :gutter="responsive.isMobile.value ? 0 : 20" style="margin-top: 20px;">
       <el-col :span="24">
-        <el-card shadow="never">
+        <el-card shadow="never" :class="{ 'mobile-card': responsive.isMobile.value }">
           <template #header>
             <div class="section-header">
               <span class="section-title">历年趋势</span>
             </div>
           </template>
-          <TrendChart :trend-data="trendData" />
+          <TrendChart :trend-data="trendData" :is-mobile="responsive.isMobile.value" />
         </el-card>
       </el-col>
     </el-row>
@@ -57,9 +62,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../store/user'
+import { useResponsive } from '../../composables/useResponsive'
 import { getPortraitRadar, getPortraitDashboard, getPortraitTrend, getPortraitTeachers } from '../../api/portrait'
 import RadarChart from './RadarChart.vue'
 import TrendChart from './TrendChart.vue'
@@ -67,6 +73,7 @@ import DistributionChart from './DistributionChart.vue'
 
 const route = useRoute()
 const userStore = useUserStore()
+const responsive = useResponsive()
 const isAdmin = computed(() => userStore.role === 'ADMIN')
 const currentUserId = computed(() => userStore.userInfo?.userId)
 
@@ -130,6 +137,15 @@ function onCompareData(data) {
   compareData.value = data
 }
 
+// 监听设备类型变化，触发图表 resize
+watch(() => responsive.isMobile.value, () => {
+  nextTick(() => {
+    if (radarRef.value) radarRef.value.refreshChart()
+    // 其他图表组件通过 window resize 事件自动触发
+    window.dispatchEvent(new Event('resize'))
+  })
+})
+
 onMounted(async () => {
   const routeUserId = route.params.userId
   if (isAdmin.value) {
@@ -151,11 +167,29 @@ watch(() => route.params.userId, (val) => {
   max-width: 1200px;
 }
 
+/* ========== 页面头部适配 ========== */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20px;
+}
+
+.page-header.is-mobile {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header-info {
+  flex: 1;
+}
+
+.header-actions {
+  flex-shrink: 0;
+}
+
+.header-actions.is-mobile {
+  width: 100%;
 }
 
 .page-title {
@@ -166,9 +200,17 @@ watch(() => route.params.userId, (val) => {
   margin-bottom: 4px;
 }
 
+.page-header.is-mobile .page-title {
+  font-size: 18px;
+}
+
 .page-desc {
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+.page-header.is-mobile .page-desc {
+  font-size: 12px;
 }
 
 .current-user-badge {
@@ -181,10 +223,17 @@ watch(() => route.params.userId, (val) => {
   border: 1px solid rgba(200, 164, 92, 0.2);
 }
 
+/* ========== 顶部数字指标卡片适配 ========== */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 14px;
+}
+
+/* 移动端：2列 × 3行 */
+.summary-grid.is-mobile {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
 .summary-card {
@@ -196,6 +245,10 @@ watch(() => route.params.userId, (val) => {
   position: relative;
   overflow: hidden;
   transition: all var(--transition-base);
+}
+
+.summary-grid.is-mobile .summary-card {
+  padding: 16px 12px;
 }
 
 .summary-card::after {
@@ -219,6 +272,14 @@ watch(() => route.params.userId, (val) => {
   opacity: 1;
 }
 
+/* 移动端禁用 hover 效果 */
+@media (hover: none) {
+  .summary-card:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
+  }
+}
+
 .summary-value {
   font-size: 26px;
   font-weight: 700;
@@ -227,10 +288,44 @@ watch(() => route.params.userId, (val) => {
   line-height: 1.2;
 }
 
+.summary-grid.is-mobile .summary-value {
+  font-size: 20px;
+}
+
 .summary-label {
   font-size: 12px;
   color: var(--color-text-muted);
   margin-top: 6px;
+}
+
+.summary-grid.is-mobile .summary-label {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* ========== 图表行适配 ========== */
+.charts-row {
+  margin-top: 20px;
+}
+
+.charts-row.is-mobile {
+  margin-top: 16px;
+}
+
+.mobile-col {
+  margin-bottom: 16px;
+}
+
+.mobile-card {
+  border-radius: var(--radius-md);
+}
+
+.mobile-card :deep(.el-card__header) {
+  padding: 12px 16px;
+}
+
+.mobile-card :deep(.el-card__body) {
+  padding: 12px;
 }
 
 .section-header {
@@ -243,5 +338,16 @@ watch(() => route.params.userId, (val) => {
   font-size: 15px;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.mobile-card .section-title {
+  font-size: 14px;
+}
+
+/* ========== 响应式媒体查询 ========== */
+@media (max-width: 768px) {
+  .portrait-page {
+    padding: 0;
+  }
 }
 </style>

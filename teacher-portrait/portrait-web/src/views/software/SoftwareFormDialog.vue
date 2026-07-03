@@ -2,12 +2,18 @@
   <el-dialog
     :model-value="visible"
     :title="isEdit ? '编辑软著' : '新增软著'"
-    width="650px"
+    :width="responsive.isMobile.value ? '90%' : '650px'"
     :close-on-click-modal="false"
     @update:model-value="$emit('update:visible', $event)"
     @closed="handleClose"
   >
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      :label-position="responsive.isMobile.value ? 'top' : 'right'"
+      :label-width="responsive.isMobile.value ? '100%' : '110px'"
+    >
       <el-row :gutter="20">
         <el-col :span="24">
           <el-form-item label="软件名称" prop="name">
@@ -16,31 +22,31 @@
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="登记号" prop="registrationNo">
             <el-input v-model="form.registrationNo" placeholder="请输入登记号" />
           </el-form-item>
         </el-col>
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="版本号">
             <el-input v-model="form.version" placeholder="V1.0" />
           </el-form-item>
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="开发完成日期" prop="devCompletionDate">
             <el-date-picker v-model="form.devCompletionDate" type="date" placeholder="请选择开发完成日期" value-format="YYYY-MM-DD" style="width:100%" />
           </el-form-item>
         </el-col>
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="首次发表日期">
             <el-date-picker v-model="form.firstPublishDate" type="date" placeholder="请选择首次发表日期" value-format="YYYY-MM-DD" style="width:100%" />
           </el-form-item>
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="responsive.isMobile.value ? 24 : 12">
           <el-form-item label="登记日期" prop="registrationDate">
             <el-date-picker v-model="form.registrationDate" type="date" placeholder="请选择登记日期" value-format="YYYY-MM-DD" style="width:100%" />
           </el-form-item>
@@ -54,8 +60,10 @@
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="$emit('update:visible', false)">取 消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">确 定</el-button>
+      <div class="dialog-footer" :class="{ 'mobile-footer': responsive.isMobile.value }">
+        <el-button @click="$emit('update:visible', false')">取 消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确 定</el-button>
+      </div>
     </template>
   </el-dialog>
 </template>
@@ -64,9 +72,13 @@
 import { ref, reactive, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createSoftwareCopyright, updateSoftwareCopyright } from '../../api/softwareCopyright'
+import { useResponsive } from '../../composables/useResponsive'
 
 const props = defineProps({ visible: Boolean, editData: Object })
 const emit = defineEmits(['update:visible', 'success'])
+
+// 响应式布局检测
+const responsive = useResponsive()
 
 const isEdit = ref(false)
 const submitting = ref(false)
@@ -127,3 +139,20 @@ function handleClose() {
   resetForm()
 }
 </script>
+
+<style scoped>
+/* 移动端底部按钮样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.dialog-footer.mobile-footer {
+  justify-content: space-between;
+}
+
+.dialog-footer.mobile-footer :deep(.el-button) {
+  flex: 1;
+}
+</style>

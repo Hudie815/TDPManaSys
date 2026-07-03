@@ -205,9 +205,6 @@
         </div>
       </div>
     </el-container>
-
-    <!-- 全局移动端预览抽屉组件 -->
-    <MobilePreviewDrawer />
   </el-container>
 </template>
 
@@ -216,7 +213,6 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../store/user'
 import { useResponsive } from '../composables/useResponsive'
-import MobilePreviewDrawer from '../components/MobilePreviewDrawer.vue'
 import {
   DataAnalysis, FolderOpened, Document, Monitor, Reading,
   Trophy, PieChart, Setting, Fold, Expand, SwitchButton, Close
