@@ -236,53 +236,72 @@ public class ScoreCalculationService {
         return result;
     }
 
+    /**
+     * 计算教师近5年的发展趋势数据
+     * 优化：一次性查询所有数据，在内存中按年份分组统计，避免N次数据库查询
+     * 性能提升：从40次查询降为6次查询，响应时间预计提升80%以上
+     */
     public List<PortraitTrendVO> calculateTrend(Long userId) {
         List<PortraitTrendVO> list = new ArrayList<>();
         java.time.LocalDate now = java.time.LocalDate.now();
         int endYear = now.getYear();
         int startYear = endYear - 4;
 
+        // 一次性查询所有数据（避免循环查询）
+        List<VerticalProject> allVertical = verticalProjectMapper.selectList(
+                new LambdaQueryWrapper<VerticalProject>().eq(VerticalProject::getUserId, userId));
+        List<HorizontalProject> allHorizontal = horizontalProjectMapper.selectList(
+                new LambdaQueryWrapper<HorizontalProject>().eq(HorizontalProject::getUserId, userId));
+        List<Patent> allPatents = patentMapper.selectList(
+                new LambdaQueryWrapper<Patent>().eq(Patent::getUserId, userId));
+        List<SoftwareCopyright> allSoftware = softwareCopyrightMapper.selectList(
+                new LambdaQueryWrapper<SoftwareCopyright>().eq(SoftwareCopyright::getUserId, userId));
+        List<Paper> allPapers = paperMapper.selectList(
+                new LambdaQueryWrapper<Paper>().eq(Paper::getUserId, userId));
+        List<Competition> allCompetitions = competitionMapper.selectList(
+                new LambdaQueryWrapper<Competition>().eq(Competition::getUserId, userId));
+
+        // 按年份分组统计
+        Map<Integer, Long> verticalByYear = allVertical.stream()
+                .collect(Collectors.groupingBy(v -> v.getStartDate().getYear(), Collectors.counting()));
+        Map<Integer, Long> horizontalByYear = allHorizontal.stream()
+                .collect(Collectors.groupingBy(h -> h.getSignDate().getYear(), Collectors.counting()));
+        Map<Integer, BigDecimal> verticalFundingByYear = allVertical.stream()
+                .collect(Collectors.groupingBy(v -> v.getStartDate().getYear(),
+                        Collectors.reducing(BigDecimal.ZERO,
+                                v -> v.getFunding() == null ? BigDecimal.ZERO : v.getFunding(),
+                                BigDecimal::add)));
+        Map<Integer, BigDecimal> horizontalFundingByYear = allHorizontal.stream()
+                .collect(Collectors.groupingBy(h -> h.getSignDate().getYear(),
+                        Collectors.reducing(BigDecimal.ZERO,
+                                h -> h.getContractAmount() == null ? BigDecimal.ZERO : h.getContractAmount(),
+                                BigDecimal::add)));
+        Map<Integer, Long> patentByYear = allPatents.stream()
+                .collect(Collectors.groupingBy(p -> p.getApplicationDate().getYear(), Collectors.counting()));
+        Map<Integer, Long> softwareByYear = allSoftware.stream()
+                .collect(Collectors.groupingBy(s -> s.getRegistrationDate().getYear(), Collectors.counting()));
+        Map<Integer, Long> paperByYear = allPapers.stream()
+                .collect(Collectors.groupingBy(p -> p.getPublishDate().getYear(), Collectors.counting()));
+        Map<Integer, Long> competitionByYear = allCompetitions.stream()
+                .collect(Collectors.groupingBy(c -> c.getCompetitionDate().getYear(), Collectors.counting()));
+
+        // 构建结果列表
         for (int year = startYear; year <= endYear; year++) {
             PortraitTrendVO vo = new PortraitTrendVO();
             vo.setYear(String.valueOf(year));
-            String beginStr = year + "-01-01";
-            String endStr = year + "-12-31";
 
-            long vCount = verticalProjectMapper.selectCount(
-                    new LambdaQueryWrapper<VerticalProject>().eq(VerticalProject::getUserId, userId)
-                            .ge(VerticalProject::getStartDate, beginStr).le(VerticalProject::getStartDate, endStr));
-            long hCount = horizontalProjectMapper.selectCount(
-                    new LambdaQueryWrapper<HorizontalProject>().eq(HorizontalProject::getUserId, userId)
-                            .ge(HorizontalProject::getSignDate, beginStr).le(HorizontalProject::getSignDate, endStr));
+            long vCount = verticalByYear.getOrDefault(year, 0L);
+            long hCount = horizontalByYear.getOrDefault(year, 0L);
             vo.setProjectCount(vCount + hCount);
 
-            BigDecimal vFunding = verticalProjectMapper.selectList(
-                    new LambdaQueryWrapper<VerticalProject>().eq(VerticalProject::getUserId, userId)
-                            .ge(VerticalProject::getStartDate, beginStr).le(VerticalProject::getStartDate, endStr))
-                    .stream().map(v -> v.getFunding() == null ? BigDecimal.ZERO : v.getFunding())
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal hFunding = horizontalProjectMapper.selectList(
-                    new LambdaQueryWrapper<HorizontalProject>().eq(HorizontalProject::getUserId, userId)
-                            .ge(HorizontalProject::getSignDate, beginStr).le(HorizontalProject::getSignDate, endStr))
-                    .stream().map(h -> h.getContractAmount() == null ? BigDecimal.ZERO : h.getContractAmount())
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal vFunding = verticalFundingByYear.getOrDefault(year, BigDecimal.ZERO);
+            BigDecimal hFunding = horizontalFundingByYear.getOrDefault(year, BigDecimal.ZERO);
             vo.setProjectFunding(vFunding.add(hFunding));
 
-            vo.setPatentCount(patentMapper.selectCount(
-                    new LambdaQueryWrapper<Patent>().eq(Patent::getUserId, userId)
-                            .ge(Patent::getApplicationDate, beginStr).le(Patent::getApplicationDate, endStr)));
-
-            vo.setSoftwareCount(softwareCopyrightMapper.selectCount(
-                    new LambdaQueryWrapper<SoftwareCopyright>().eq(SoftwareCopyright::getUserId, userId)
-                            .ge(SoftwareCopyright::getRegistrationDate, beginStr).le(SoftwareCopyright::getRegistrationDate, endStr)));
-
-            vo.setPaperCount(paperMapper.selectCount(
-                    new LambdaQueryWrapper<Paper>().eq(Paper::getUserId, userId)
-                            .ge(Paper::getPublishDate, beginStr).le(Paper::getPublishDate, endStr)));
-
-            vo.setCompetitionCount(competitionMapper.selectCount(
-                    new LambdaQueryWrapper<Competition>().eq(Competition::getUserId, userId)
-                            .ge(Competition::getCompetitionDate, beginStr).le(Competition::getCompetitionDate, endStr)));
+            vo.setPatentCount(patentByYear.getOrDefault(year, 0L));
+            vo.setSoftwareCount(softwareByYear.getOrDefault(year, 0L));
+            vo.setPaperCount(paperByYear.getOrDefault(year, 0L));
+            vo.setCompetitionCount(competitionByYear.getOrDefault(year, 0L));
 
             list.add(vo);
         }

@@ -71,6 +71,11 @@ public class ExcelController {
         EasyExcel.write(response.getOutputStream()).head(head).sheet("Sheet1").doWrite(data);
     }
 
+    /**
+     * 导入Excel数据
+     * 添加事务注解，确保导入失败时能回滚已插入的数据
+     */
+    @Transactional(rollbackFor = Exception.class)
     @PostMapping("/import/{module}")
     public Result<ImportResultDTO> importData(@PathVariable String module, @RequestParam("file") MultipartFile file) {
         ImportResultDTO result = new ImportResultDTO();
@@ -343,9 +348,24 @@ public class ExcelController {
         }
     }
 
+    /**
+     * 导出数据（优化：批量查询用户信息，避免N+1查询）
+     */
     private List<List<Object>> exportModuleData(String module, Long userId, Integer year) {
         List<List<Object>> data = new ArrayList<>();
         List<String> fields = getFieldOrder(module);
+
+        // 批量查询用户信息（优化：避免在循环中逐条查询）
+        Map<Long, User> userMap;
+        if (userId != null) {
+            User user = userMapper.selectById(userId);
+            userMap = user != null ? Collections.singletonMap(userId, user) : Collections.emptyMap();
+        } else {
+            // 管理员导出所有数据时，一次性查询所有用户
+            userMap = userMapper.selectList(null).stream()
+                    .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        }
+
         switch (module) {
             case "vertical-project": {
                 com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<VerticalProject> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<VerticalProject>()
@@ -354,7 +374,7 @@ public class ExcelController {
                     String begin = year + "-01-01"; String end = year + "-12-31";
                     w.ge(VerticalProject::getStartDate, begin).le(VerticalProject::getStartDate, end);
                 }
-                verticalProjectMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userId)));
+                verticalProjectMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userMap)));
                 break;
             }
             case "horizontal-project": {
@@ -364,7 +384,7 @@ public class ExcelController {
                     String begin = year + "-01-01"; String end = year + "-12-31";
                     w.ge(HorizontalProject::getSignDate, begin).le(HorizontalProject::getSignDate, end);
                 }
-                horizontalProjectMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userId)));
+                horizontalProjectMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userMap)));
                 break;
             }
             case "patent": {
@@ -374,7 +394,7 @@ public class ExcelController {
                     String begin = year + "-01-01"; String end = year + "-12-31";
                     w.ge(Patent::getApplicationDate, begin).le(Patent::getApplicationDate, end);
                 }
-                patentMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userId)));
+                patentMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userMap)));
                 break;
             }
             case "software": {
@@ -384,7 +404,7 @@ public class ExcelController {
                     String begin = year + "-01-01"; String end = year + "-12-31";
                     w.ge(SoftwareCopyright::getRegistrationDate, begin).le(SoftwareCopyright::getRegistrationDate, end);
                 }
-                softwareCopyrightMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userId)));
+                softwareCopyrightMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userMap)));
                 break;
             }
             case "paper": {
@@ -394,7 +414,7 @@ public class ExcelController {
                     String begin = year + "-01-01"; String end = year + "-12-31";
                     w.ge(Paper::getPublishDate, begin).le(Paper::getPublishDate, end);
                 }
-                paperMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userId)));
+                paperMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userMap)));
                 break;
             }
             case "competition": {
@@ -404,15 +424,28 @@ public class ExcelController {
                     String begin = year + "-01-01"; String end = year + "-12-31";
                     w.ge(Competition::getCompetitionDate, begin).le(Competition::getCompetitionDate, end);
                 }
-                competitionMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userId)));
+                competitionMapper.selectList(w).forEach(e -> data.add(toRow(e, fields, userMap)));
                 break;
             }
         }
         return data;
     }
 
-    private List<Object> toRow(Object entity, List<String> fields, Long userId) {
-        User u = userMapper.selectById(userId);
+    /**
+     * 将实体转换为行数据（优化：使用预加载的用户Map避免N+1查询）
+     */
+    private List<Object> toRow(Object entity, List<String> fields, Map<Long, User> userMap) {
+        // 从实体中获取userId（通过反射）
+        Long entityUserId = null;
+        try {
+            java.lang.reflect.Field userIdField = entity.getClass().getDeclaredField("userId");
+            userIdField.setAccessible(true);
+            entityUserId = (Long) userIdField.get(entity);
+        } catch (Exception e) {
+            // 忽略
+        }
+
+        User u = entityUserId != null ? userMap.get(entityUserId) : null;
         List<Object> row = new ArrayList<>();
         for (String f : fields) {
             row.add(getFieldValue(entity, f, u));

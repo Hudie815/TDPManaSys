@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -71,7 +72,10 @@ public class MobileApiService {
     
     @Resource
     private CompetitionService competitionService;
-    
+
+    @Resource
+    private HttpServletRequest request;
+
     // ========== 仪表盘数据 ==========
     
     /**
@@ -154,11 +158,12 @@ public class MobileApiService {
     
     /**
      * 获取纵向项目列表（移动端）
+     * 优化：批量查询用户信息，避免N+1查询问题
      */
     public Page<MobileProjectVO> listVerticalProjects(String keyword, String status, PageQuery pageQuery) {
         Page<VerticalProject> page = pageQuery.toPage();
         LambdaQueryWrapper<VerticalProject> wrapper = new LambdaQueryWrapper<>();
-        
+
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.like(VerticalProject::getName, keyword)
                    .or()
@@ -167,22 +172,31 @@ public class MobileApiService {
         if (status != null && !status.isEmpty()) {
             wrapper.eq(VerticalProject::getStatus, status);
         }
-        
+
         // 只查询当前用户的数据（或管理员查询所有）
         Long userId = getCurrentUserId();
         if (!isAdmin()) {
             wrapper.eq(VerticalProject::getUserId, userId);
         }
-        
+
         wrapper.orderByDesc(VerticalProject::getCreateTime);
-        
+
         Page<VerticalProject> entityPage = verticalProjectMapper.selectPage(page, wrapper);
-        
+
+        // 批量查询用户信息（优化N+1查询）
+        List<Long> userIds = entityPage.getRecords().stream()
+                .map(VerticalProject::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, User> userMap = userIds.isEmpty() ? Collections.emptyMap()
+                : userMapper.selectBatchIds(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+
         // 转换为移动端 VO
         Page<MobileProjectVO> voPage = new Page<>();
         BeanUtils.copyProperties(entityPage, voPage, "records");
-        voPage.setRecords(convertToMobileProjectVO(entityPage.getRecords()));
-        
+        voPage.setRecords(convertToMobileProjectVO(entityPage.getRecords(), userMap));
+
         return voPage;
     }
     
@@ -199,31 +213,41 @@ public class MobileApiService {
     
     /**
      * 获取横向项目列表（移动端）
+     * 优化：批量查询用户信息，避免N+1查询问题
      */
     public Page<MobileProjectVO> listHorizontalProjects(String keyword, String status, PageQuery pageQuery) {
         Page<HorizontalProject> page = pageQuery.toPage();
         LambdaQueryWrapper<HorizontalProject> wrapper = new LambdaQueryWrapper<>();
-        
+
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.like(HorizontalProject::getName, keyword);
         }
         if (status != null && !status.isEmpty()) {
             wrapper.eq(HorizontalProject::getStatus, status);
         }
-        
+
         Long userId = getCurrentUserId();
         if (!isAdmin()) {
             wrapper.eq(HorizontalProject::getUserId, userId);
         }
-        
+
         wrapper.orderByDesc(HorizontalProject::getCreateTime);
-        
+
         Page<HorizontalProject> entityPage = horizontalProjectMapper.selectPage(page, wrapper);
-        
+
+        // 批量查询用户信息（优化N+1查询）
+        List<Long> userIds = entityPage.getRecords().stream()
+                .map(HorizontalProject::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, User> userMap = userIds.isEmpty() ? Collections.emptyMap()
+                : userMapper.selectBatchIds(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+
         Page<MobileProjectVO> voPage = new Page<>();
         BeanUtils.copyProperties(entityPage, voPage, "records");
-        voPage.setRecords(convertHorizontalToMobileVO(entityPage.getRecords()));
-        
+        voPage.setRecords(convertHorizontalToMobileVO(entityPage.getRecords(), userMap));
+
         return voPage;
     }
     
@@ -242,11 +266,12 @@ public class MobileApiService {
     
     /**
      * 获取专利列表（移动端）
+     * 优化：批量查询用户信息，避免N+1查询问题
      */
     public Page<MobilePatentVO> listPatents(String keyword, String status, PageQuery pageQuery) {
         Page<Patent> page = pageQuery.toPage();
         LambdaQueryWrapper<Patent> wrapper = new LambdaQueryWrapper<>();
-        
+
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.like(Patent::getName, keyword)
                    .or()
@@ -255,20 +280,29 @@ public class MobileApiService {
         if (status != null && !status.isEmpty()) {
             wrapper.eq(Patent::getStatus, status);
         }
-        
+
         Long userId = getCurrentUserId();
         if (!isAdmin()) {
             wrapper.eq(Patent::getUserId, userId);
         }
-        
+
         wrapper.orderByDesc(Patent::getCreateTime);
-        
+
         Page<Patent> entityPage = patentMapper.selectPage(page, wrapper);
-        
+
+        // 批量查询用户信息（优化N+1查询）
+        List<Long> userIds = entityPage.getRecords().stream()
+                .map(Patent::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, User> userMap = userIds.isEmpty() ? Collections.emptyMap()
+                : userMapper.selectBatchIds(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+
         Page<MobilePatentVO> voPage = new Page<>();
         BeanUtils.copyProperties(entityPage, voPage, "records");
-        voPage.setRecords(convertToMobilePatentVO(entityPage.getRecords()));
-        
+        voPage.setRecords(convertToMobilePatentVO(entityPage.getRecords(), userMap));
+
         return voPage;
     }
     
@@ -405,64 +439,97 @@ public class MobileApiService {
     }
     
     // ========== 私有方法 ==========
-    
-    private List<MobileProjectVO> convertToMobileProjectVO(List<VerticalProject> projects) {
-        return projects.stream().map(this::convertToMobileProjectVO).collect(Collectors.toList());
+
+    /**
+     * 批量转换纵向项目为移动端VO（优化：使用预加载的用户Map避免N+1查询）
+     */
+    private List<MobileProjectVO> convertToMobileProjectVO(List<VerticalProject> projects, Map<Long, User> userMap) {
+        return projects.stream()
+                .map(p -> convertToMobileProjectVO(p, userMap))
+                .collect(Collectors.toList());
     }
-    
-    private MobileProjectVO convertToMobileProjectVO(VerticalProject project) {
+
+    /**
+     * 单个纵向项目转换（从userMap获取用户信息）
+     */
+    private MobileProjectVO convertToMobileProjectVO(VerticalProject project, Map<Long, User> userMap) {
         MobileProjectVO vo = new MobileProjectVO();
         BeanUtils.copyProperties(project, vo);
-        
-        // 获取教师姓名
-        User user = userMapper.selectById(project.getUserId());
+
+        User user = userMap.get(project.getUserId());
         if (user != null) {
             vo.setTeacherName(user.getName());
             vo.setTeacherCollege(user.getCollege());
         }
         return vo;
     }
-    
-    private List<MobileProjectVO> convertHorizontalToMobileVO(List<HorizontalProject> projects) {
-        return projects.stream().map(this::convertHorizontalToMobileVO).collect(Collectors.toList());
+
+    /**
+     * 批量转换横向项目为移动端VO（优化：使用预加载的用户Map避免N+1查询）
+     */
+    private List<MobileProjectVO> convertHorizontalToMobileVO(List<HorizontalProject> projects, Map<Long, User> userMap) {
+        return projects.stream()
+                .map(p -> convertHorizontalToMobileVO(p, userMap))
+                .collect(Collectors.toList());
     }
-    
-    private MobileProjectVO convertHorizontalToMobileVO(HorizontalProject project) {
+
+    /**
+     * 单个横向项目转换（从userMap获取用户信息）
+     */
+    private MobileProjectVO convertHorizontalToMobileVO(HorizontalProject project, Map<Long, User> userMap) {
         MobileProjectVO vo = new MobileProjectVO();
         BeanUtils.copyProperties(project, vo);
-        
-        User user = userMapper.selectById(project.getUserId());
+
+        User user = userMap.get(project.getUserId());
         if (user != null) {
             vo.setTeacherName(user.getName());
             vo.setTeacherCollege(user.getCollege());
         }
         return vo;
     }
-    
-    private List<MobilePatentVO> convertToMobilePatentVO(List<Patent> patents) {
-        return patents.stream().map(this::convertToMobilePatentVO).collect(Collectors.toList());
+
+    /**
+     * 批量转换专利为移动端VO（优化：使用预加载的用户Map避免N+1查询）
+     */
+    private List<MobilePatentVO> convertToMobilePatentVO(List<Patent> patents, Map<Long, User> userMap) {
+        return patents.stream()
+                .map(p -> convertToMobilePatentVO(p, userMap))
+                .collect(Collectors.toList());
     }
-    
-    private MobilePatentVO convertToMobilePatentVO(Patent patent) {
+
+    /**
+     * 单个专利转换（从userMap获取用户信息）
+     */
+    private MobilePatentVO convertToMobilePatentVO(Patent patent, Map<Long, User> userMap) {
         MobilePatentVO vo = new MobilePatentVO();
         BeanUtils.copyProperties(patent, vo);
-        
-        User user = userMapper.selectById(patent.getUserId());
+
+        User user = userMap.get(patent.getUserId());
         if (user != null) {
             vo.setTeacherName(user.getName());
         }
         return vo;
     }
-    
+
+    /**
+     * 获取当前登录用户ID
+     * 从JWT拦截器注入的request属性中获取
+     */
     private Long getCurrentUserId() {
-        // 从 ThreadLocal 或 JWT 上下文获取
-        // 这里简化处理，实际应该从登录信息获取
-        return 1L; // TODO: 从实际登录用户获取
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            throw new BusinessException(401, "未登录或登录已过期");
+        }
+        return userId;
     }
-    
+
+    /**
+     * 判断当前用户是否为管理员
+     * 从JWT拦截器注入的request属性中获取角色信息
+     */
     private boolean isAdmin() {
-        // 从上下文获取用户角色
-        return false; // TODO: 从实际登录信息获取
+        String role = (String) request.getAttribute("role");
+        return "ADMIN".equals(role);
     }
     
     private int getExpectedCount(BatchOperationDTO dto) {
